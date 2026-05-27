@@ -119,10 +119,10 @@ export default function Register({ onNavigate }) {
   return (
     <div className="min-h-screen flex items-center justify-center p-4">
       {/* Glow Effects */}
-      <div className="absolute top-1/4 left-1/4 w-72 h-72 bg-purple-500/10 rounded-full blur-3xl -z-10 pointer-events-none"></div>
-      <div className="absolute bottom-1/4 right-1/4 w-72 h-72 bg-cyan-500/10 rounded-full blur-3xl -z-10 pointer-events-none"></div>
+      <div className="absolute top-1/4 left-1/4 w-72 h-72 bg-purple-500/10 rounded-full blur-3xl -z-10 pointer-events-none animate-float-purple"></div>
+      <div className="absolute bottom-1/4 right-1/4 w-72 h-72 bg-cyan-500/10 rounded-full blur-3xl -z-10 pointer-events-none animate-float-cyan"></div>
 
-      <div className="glass-panel w-full max-w-md p-8 rounded-3xl ai-glow-ring relative">
+      <div className="glass-panel w-full max-w-md p-8 rounded-3xl ai-glow-ring relative animate-auth-entrance">
         <div className="flex flex-col items-center mb-8">
           <div className="w-14 h-14 bg-gradient-to-tr from-purple-500 to-cyan-500 rounded-2xl flex items-center justify-center shadow-lg shadow-cyan-500/15 mb-4">
             <Sparkles className="w-7 h-7 text-white animate-pulse" />

@@ -14,21 +14,21 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const checkUser = async () => {
-    const storedAccounts = localStorage.getItem('accounts');
-    const activeEmail = localStorage.getItem('activeEmail');
+    const storedAccounts = sessionStorage.getItem('accounts');
+    const activeEmail = sessionStorage.getItem('activeEmail');
     
     if (!storedAccounts) {
-      const legacyToken = localStorage.getItem('token');
+      const legacyToken = sessionStorage.getItem('token');
       if (legacyToken) {
         try {
           const profile = await api.get('/auth/me', { headers: { Authorization: `Bearer ${legacyToken}` } });
           const newAccounts = [{ email: profile.email, token: legacyToken, full_name: profile.full_name }];
           setAccounts(newAccounts);
-          localStorage.setItem('accounts', JSON.stringify(newAccounts));
-          localStorage.setItem('activeEmail', profile.email);
+          sessionStorage.setItem('accounts', JSON.stringify(newAccounts));
+          sessionStorage.setItem('activeEmail', profile.email);
           setUser(profile);
         } catch (err) {
-          localStorage.removeItem('token');
+          sessionStorage.removeItem('token');
         }
       }
       setLoading(false);
@@ -50,28 +50,28 @@ export const AuthProvider = ({ children }) => {
     }
 
     try {
-      localStorage.setItem('token', activeAcc.token);
+      sessionStorage.setItem('token', activeAcc.token);
       const profile = await api.get('/auth/me');
       setUser(profile);
       
       if (profile.full_name !== activeAcc.full_name) {
         const updated = parsedAccounts.map(a => a.email === activeEmail ? { ...a, full_name: profile.full_name } : a);
         setAccounts(updated);
-        localStorage.setItem('accounts', JSON.stringify(updated));
+        sessionStorage.setItem('accounts', JSON.stringify(updated));
       }
     } catch (err) {
       console.error('Session verification failed:', err);
       const updated = parsedAccounts.filter(a => a.email !== activeEmail);
       setAccounts(updated);
-      localStorage.setItem('accounts', JSON.stringify(updated));
+      sessionStorage.setItem('accounts', JSON.stringify(updated));
       if (updated.length > 0) {
-        localStorage.setItem('activeEmail', updated[0].email);
-        localStorage.setItem('token', updated[0].token);
+        sessionStorage.setItem('activeEmail', updated[0].email);
+        sessionStorage.setItem('token', updated[0].token);
         checkUser();
         return;
       } else {
-        localStorage.removeItem('activeEmail');
-        localStorage.removeItem('token');
+        sessionStorage.removeItem('activeEmail');
+        sessionStorage.removeItem('token');
         setUser(null);
       }
     } finally {
@@ -84,11 +84,11 @@ export const AuthProvider = ({ children }) => {
     setLoading(true);
     try {
       const data = await api.post('/auth/login', { email, password });
-      localStorage.setItem('token', data.access_token);
+      sessionStorage.setItem('token', data.access_token);
       
       const userProfile = await api.get('/auth/me');
       
-      const storedAccounts = localStorage.getItem('accounts');
+      const storedAccounts = sessionStorage.getItem('accounts');
       let currentAccounts = storedAccounts ? JSON.parse(storedAccounts) : [];
       
       currentAccounts = currentAccounts.filter(acc => acc.email !== userProfile.email);
@@ -99,8 +99,8 @@ export const AuthProvider = ({ children }) => {
       });
       
       setAccounts(currentAccounts);
-      localStorage.setItem('accounts', JSON.stringify(currentAccounts));
-      localStorage.setItem('activeEmail', userProfile.email);
+      sessionStorage.setItem('accounts', JSON.stringify(currentAccounts));
+      sessionStorage.setItem('activeEmail', userProfile.email);
       
       setUser(userProfile);
       return userProfile;
@@ -177,8 +177,8 @@ export const AuthProvider = ({ children }) => {
       const activeAcc = accounts.find(acc => acc.email === email);
       if (!activeAcc) throw new Error("Account not found");
 
-      localStorage.setItem('activeEmail', email);
-      localStorage.setItem('token', activeAcc.token);
+      sessionStorage.setItem('activeEmail', email);
+      sessionStorage.setItem('token', activeAcc.token);
       
       const profile = await api.get('/auth/me');
       setUser(profile);
@@ -193,32 +193,32 @@ export const AuthProvider = ({ children }) => {
   const logoutAccount = (email) => {
     const updated = accounts.filter(acc => acc.email !== email);
     setAccounts(updated);
-    localStorage.setItem('accounts', JSON.stringify(updated));
+    sessionStorage.setItem('accounts', JSON.stringify(updated));
     
-    const activeEmail = localStorage.getItem('activeEmail');
+    const activeEmail = sessionStorage.getItem('activeEmail');
     if (activeEmail === email) {
       if (updated.length > 0) {
         const nextAcc = updated[0];
-        localStorage.setItem('activeEmail', nextAcc.email);
-        localStorage.setItem('token', nextAcc.token);
+        sessionStorage.setItem('activeEmail', nextAcc.email);
+        sessionStorage.setItem('token', nextAcc.token);
         switchAccount(nextAcc.email);
       } else {
-        localStorage.removeItem('activeEmail');
-        localStorage.removeItem('accounts');
-        localStorage.removeItem('token');
+        sessionStorage.removeItem('activeEmail');
+        sessionStorage.removeItem('accounts');
+        sessionStorage.removeItem('token');
         setUser(null);
       }
     }
   };
 
   const logout = () => {
-    const activeEmail = localStorage.getItem('activeEmail');
+    const activeEmail = sessionStorage.getItem('activeEmail');
     if (activeEmail) {
       logoutAccount(activeEmail);
     } else {
-      localStorage.removeItem('token');
-      localStorage.removeItem('accounts');
-      localStorage.removeItem('activeEmail');
+      sessionStorage.removeItem('token');
+      sessionStorage.removeItem('accounts');
+      sessionStorage.removeItem('activeEmail');
       setUser(null);
     }
   };

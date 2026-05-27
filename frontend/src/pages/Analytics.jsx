@@ -51,7 +51,7 @@ export default function Analytics() {
   const { summary, daily_trend, category_breakdown, hourly_distribution, insights } = data;
 
   return (
-    <div className="pl-64 min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 pb-12 transition-colors duration-200">
+    <div className="pl-64 min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 pb-12 transition-colors duration-200 animate-tab-fade-in">
       {/* Header */}
       <header className="p-8 border-b border-slate-200 dark:border-slate-900 flex items-center justify-between">
         <div className="flex items-center space-x-3">

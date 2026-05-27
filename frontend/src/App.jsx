@@ -79,7 +79,7 @@ function AppContent() {
 
   // Handle Authenticated App
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans transition-colors duration-200">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans transition-colors duration-200 animate-page-fade-in">
       <Sidebar 
         activeTab={activeTab} 
         onTabChange={setActiveTab} 

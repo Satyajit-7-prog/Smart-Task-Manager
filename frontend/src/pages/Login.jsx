@@ -9,6 +9,7 @@ export default function Login({ onNavigate }) {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+  const [isExiting, setIsExiting] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -20,8 +21,10 @@ export default function Login({ onNavigate }) {
     setLoading(true);
     try {
       await login(email, password);
-      // Force page reload/navigation to trigger browser credentials manager saving popup
-      window.location.href = '/';
+      setIsExiting(true);
+      setTimeout(() => {
+        onNavigate('app');
+      }, 500);
     } catch (err) {
       setErrorMsg(err.message || 'Login failed. Please verify credentials.');
       setLoading(false);
@@ -31,10 +34,10 @@ export default function Login({ onNavigate }) {
   return (
     <div className="min-h-screen flex items-center justify-center p-4">
       {/* Glow Effects */}
-      <div className="absolute top-1/4 left-1/4 w-72 h-72 bg-purple-500/10 rounded-full blur-3xl -z-10 pointer-events-none"></div>
-      <div className="absolute bottom-1/4 right-1/4 w-72 h-72 bg-cyan-500/10 rounded-full blur-3xl -z-10 pointer-events-none"></div>
+      <div className="absolute top-1/4 left-1/4 w-72 h-72 bg-purple-500/10 rounded-full blur-3xl -z-10 pointer-events-none animate-float-purple"></div>
+      <div className="absolute bottom-1/4 right-1/4 w-72 h-72 bg-cyan-500/10 rounded-full blur-3xl -z-10 pointer-events-none animate-float-cyan"></div>
 
-      <div className="glass-panel w-full max-w-md p-8 rounded-3xl ai-glow-ring relative">
+      <div className={`glass-panel w-full max-w-md p-8 rounded-3xl ai-glow-ring relative animate-auth-entrance ${isExiting ? 'animate-auth-exit' : ''}`}>
         {user && (
           <button
             onClick={() => onNavigate('dashboard')}

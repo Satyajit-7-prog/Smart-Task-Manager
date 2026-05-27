@@ -4,7 +4,7 @@ const BASE_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api';
  * Custom Fetch client that automatically injects JWT Token from localStorage.
  */
 async function request(endpoint, { method = 'GET', body = null, headers = {} } = {}) {
-  const token = localStorage.getItem('token');
+  const token = sessionStorage.getItem('token');
   
   const defaultHeaders = {
     'Content-Type': 'application/json',

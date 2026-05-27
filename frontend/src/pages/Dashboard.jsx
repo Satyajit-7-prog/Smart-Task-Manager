@@ -197,7 +197,7 @@ export default function Dashboard() {
   });
 
   return (
-    <div className="pl-64 min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors duration-200">
+    <div className="pl-64 min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors duration-200 animate-tab-fade-in">
       {/* Top Banner and Quick actions */}
       <header className="p-8 border-b border-slate-200 dark:border-slate-900 flex items-center justify-between transition-colors">
         <div>
