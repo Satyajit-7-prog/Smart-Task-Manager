@@ -3,9 +3,36 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import datetime
 import logging
+import json
+import urllib.request
 from app.config import settings
 
 logger = logging.getLogger(__name__)
+
+def send_via_resend(email: str, subject: str, html_content: str) -> bool:
+    if not settings.RESEND_API_KEY:
+        return False
+    try:
+        url = "https://api.resend.com/emails"
+        headers = {
+            "Authorization": f"Bearer {settings.RESEND_API_KEY}",
+            "Content-Type": "application/json"
+        }
+        payload = {
+            "from": "Smart Task Manager <onboarding@resend.dev>",
+            "to": [email],
+            "subject": subject,
+            "html": html_content
+        }
+        data = json.dumps(payload).encode("utf-8")
+        req = urllib.request.Request(url, data=data, headers=headers, method="POST")
+        with urllib.request.urlopen(req) as response:
+            res_body = response.read().decode("utf-8")
+            logger.info(f"Resend API email sent successfully to {email}. Response: {res_body}")
+            return True
+    except Exception as e:
+        logger.error(f"Resend API email delivery failed to {email}: {e}")
+        raise e
 
 def send_otp_email(email: str, otp: str):
     if not settings.SMTP_HOST or not settings.SMTP_USER or not settings.SMTP_PASSWORD:
@@ -114,6 +141,11 @@ def send_otp_email(email: str, otp: str):
     </body>
     </html>
     """
+
+    if settings.RESEND_API_KEY:
+        subject = f"{otp} is your Smart Task Manager verification code"
+        if send_via_resend(email, subject, html):
+            return
 
     message.attach(MIMEText(text, "plain"))
     message.attach(MIMEText(html, "html"))
@@ -238,6 +270,11 @@ def send_password_reset_email(email: str, otp: str):
     </body>
     </html>
     """
+
+    if settings.RESEND_API_KEY:
+        subject = f"{otp} is your Smart Task Manager password reset code"
+        if send_via_resend(email, subject, html):
+            return
 
     message.attach(MIMEText(text, "plain"))
     message.attach(MIMEText(html, "html"))

@@ -20,5 +20,8 @@ class Settings:
     SMTP_PASSWORD: str = os.getenv("SMTP_PASSWORD", "")
     SMTP_SENDER: str = os.getenv("SMTP_SENDER", "")
 
+    # Resend API Configuration for production email delivery (bypasses Render SMTP port blocking)
+    RESEND_API_KEY: str = os.getenv("RESEND_API_KEY", "")
+
 settings = Settings()
 
