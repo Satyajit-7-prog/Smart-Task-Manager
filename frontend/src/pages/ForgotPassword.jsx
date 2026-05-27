@@ -1,18 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Eye, EyeOff, Lock, Mail, User, Sparkles, Key, CheckCircle } from 'lucide-react';
-import { api } from '../utils/api';
+import { Eye, EyeOff, Lock, Mail, Sparkles, Key, CheckCircle, ArrowLeft } from 'lucide-react';
 
-export default function Register({ onNavigate }) {
-  const { register, verifyOtp } = useAuth();
-  const [fullName, setFullName] = useState('');
+export default function ForgotPassword({ onNavigate }) {
+  const { sendResetOtp, verifyResetOtp, confirmPasswordReset } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
-  // OTP flow states: 'info' -> 'otp' -> 'password' -> 'success'
+  // Flow steps: 'info' -> 'otp' -> 'password' -> 'success'
   const [step, setStep] = useState('info');
   const [otp, setOtp] = useState('');
   const [countdown, setCountdown] = useState(0);
@@ -38,18 +37,18 @@ export default function Register({ onNavigate }) {
 
   const handleSendOtp = async (e) => {
     e.preventDefault();
-    if (!fullName || !email) {
-      setErrorMsg('Please fill in all fields.');
+    if (!email) {
+      setErrorMsg('Please enter your email address.');
       return;
     }
     setErrorMsg('');
     setLoading(true);
     try {
-      await api.post('/auth/register/send-otp', { email });
+      await sendResetOtp(email);
       setStep('otp');
       setCountdown(30);
     } catch (err) {
-      setErrorMsg(err.message || 'Failed to send OTP code. Please try again.');
+      setErrorMsg(err.message || 'Failed to send OTP code. Make sure this email is registered.');
     } finally {
       setLoading(false);
     }
@@ -59,7 +58,7 @@ export default function Register({ onNavigate }) {
     setErrorMsg('');
     setLoading(true);
     try {
-      await api.post('/auth/register/send-otp', { email });
+      await sendResetOtp(email);
       setCountdown(30);
       setOtp('');
     } catch (err) {
@@ -78,42 +77,45 @@ export default function Register({ onNavigate }) {
     setErrorMsg('');
     setLoading(true);
     try {
-      await verifyOtp(email, otp);
+      await verifyResetOtp(email, otp);
       setStep('password');
     } catch (err) {
-      setErrorMsg(err.message || 'OTP verification failed. Please try again.');
+      setErrorMsg(err.message || 'Verification failed. Please check the code.');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleRegister = async (e) => {
+  const handleResetPassword = async (e) => {
     e.preventDefault();
-    if (!password) {
-      setErrorMsg('Please enter a password.');
+    if (!password || !confirmPassword) {
+      setErrorMsg('Please fill in both password fields.');
       return;
     }
     if (password.length < 6) {
       setErrorMsg('Password must be at least 6 characters.');
       return;
     }
+    if (password !== confirmPassword) {
+      setErrorMsg('Passwords do not match.');
+      return;
+    }
     setErrorMsg('');
     setLoading(true);
     try {
-      await register(email, password, fullName);
+      await confirmPasswordReset(email, password);
       setStep('success');
     } catch (err) {
-      setErrorMsg(err.message || 'Registration failed.');
+      setErrorMsg(err.message || 'Failed to reset password.');
     } finally {
       setLoading(false);
     }
   };
 
-  // Switch form submit handlers based on steps
   const handleFormSubmit = (e) => {
     if (step === 'info') return handleSendOtp(e);
     if (step === 'otp') return handleVerifyOtp(e);
-    return handleRegister(e);
+    return handleResetPassword(e);
   };
 
   return (
@@ -123,21 +125,31 @@ export default function Register({ onNavigate }) {
       <div className="absolute bottom-1/4 right-1/4 w-72 h-72 bg-cyan-500/10 rounded-full blur-3xl -z-10 pointer-events-none"></div>
 
       <div className="glass-panel w-full max-w-md p-8 rounded-3xl ai-glow-ring relative">
-        <div className="flex flex-col items-center mb-8">
-          <div className="w-14 h-14 bg-gradient-to-tr from-purple-500 to-cyan-500 rounded-2xl flex items-center justify-center shadow-lg shadow-cyan-500/15 mb-4">
+        {step !== 'success' && (
+          <button
+            onClick={() => onNavigate('login')}
+            className="absolute top-8 left-8 text-slate-400 hover:text-slate-200 flex items-center space-x-1 text-sm font-semibold transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            <span>Back</span>
+          </button>
+        )}
+
+        <div className="flex flex-col items-center mb-8 mt-4">
+          <div className="w-14 h-14 bg-gradient-to-tr from-pink-500 to-purple-500 rounded-2xl flex items-center justify-center shadow-lg shadow-purple-500/15 mb-4">
             <Sparkles className="w-7 h-7 text-white animate-pulse" />
           </div>
-          <h2 className="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-purple-400 via-pink-400 to-cyan-400 bg-clip-text text-transparent text-center">
-            {step === 'info' && 'Create Account'}
-            {step === 'otp' && 'Verify Email'}
-            {step === 'password' && 'Set Password'}
-            {step === 'success' && 'Ready to Log In'}
+          <h2 className="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-pink-400 via-purple-400 to-cyan-400 bg-clip-text text-transparent text-center">
+            {step === 'info' && 'Forgot Password?'}
+            {step === 'otp' && 'Verify Code'}
+            {step === 'password' && 'Reset Password'}
+            {step === 'success' && 'Reset Successful'}
           </h2>
           <p className="text-slate-500 dark:text-slate-400 mt-2 text-sm text-center">
-            {step === 'info' && 'Register to experience smart, automated scheduling'}
-            {step === 'otp' && 'Enter the verification code sent to your email'}
-            {step === 'password' && 'Choose a secure password to complete your signup'}
-            {step === 'success' && 'Your account registration was successful'}
+            {step === 'info' && 'Recover your AI task scheduler account'}
+            {step === 'otp' && 'Enter the reset code sent to your email'}
+            {step === 'password' && 'Enter your new secure account password'}
+            {step === 'success' && 'You can now sign in with your new password'}
           </p>
         </div>
 
@@ -153,9 +165,9 @@ export default function Register({ onNavigate }) {
               <CheckCircle className="w-9 h-9" />
             </div>
             <div className="space-y-2">
-              <h3 className="text-xl font-bold text-slate-800 dark:text-slate-100">Registration Complete!</h3>
+              <h3 className="text-xl font-bold text-slate-800 dark:text-slate-100">Password Reset Complete!</h3>
               <p className="text-sm text-slate-500 dark:text-slate-400 max-w-xs">
-                Your account for <span className="font-semibold text-slate-700 dark:text-slate-300">{email}</span> has been created.
+                The password for <span className="font-semibold text-slate-700 dark:text-slate-300">{email}</span> has been updated successfully.
               </p>
               <p className="text-xs text-slate-400 dark:text-slate-500">
                 Redirecting to login in <span className="font-bold text-cyan-500">{successCountdown}s</span>...
@@ -167,32 +179,13 @@ export default function Register({ onNavigate }) {
               onClick={() => onNavigate('login')}
               className="glass-button-primary w-full flex items-center justify-center mt-6"
             >
-              Sign In Now
+              Log In Now
             </button>
           </div>
         ) : (
           <form onSubmit={handleFormSubmit} className="space-y-4">
             {step === 'info' && (
               <>
-                <div className="space-y-1">
-                  <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
-                    Full Name
-                  </label>
-                  <div className="relative">
-                    <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-500 dark:text-slate-400 pointer-events-none">
-                      <User className="w-5 h-5" />
-                    </span>
-                    <input
-                      type="text"
-                      placeholder="John Doe"
-                      value={fullName}
-                      onChange={(e) => setFullName(e.target.value)}
-                      className="glass-input w-full pl-11"
-                      required
-                    />
-                  </div>
-                </div>
-
                 <div className="space-y-1">
                   <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
                     Email Address
@@ -210,6 +203,7 @@ export default function Register({ onNavigate }) {
                       onChange={(e) => setEmail(e.target.value)}
                       className="glass-input w-full pl-11"
                       required
+                      autoFocus
                     />
                   </div>
                 </div>
@@ -222,7 +216,7 @@ export default function Register({ onNavigate }) {
                   {loading ? (
                     <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
                   ) : (
-                    <span>Send Verification Code</span>
+                    <span>Send Reset Code</span>
                   )}
                 </button>
               </>
@@ -231,7 +225,7 @@ export default function Register({ onNavigate }) {
             {step === 'otp' && (
               <>
                 <div className="text-center p-4 bg-slate-500/5 rounded-2xl border border-slate-500/10 mb-4">
-                  <p className="text-xs text-slate-500 dark:text-slate-400">Verification code sent to</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">Reset code sent to</p>
                   <p className="font-semibold text-slate-800 dark:text-slate-200 mt-1">{email}</p>
                   <button
                     type="button"
@@ -289,7 +283,7 @@ export default function Register({ onNavigate }) {
                   {loading ? (
                     <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
                   ) : (
-                    <span>Verify Email</span>
+                    <span>Verify Code</span>
                   )}
                 </button>
               </>
@@ -298,14 +292,9 @@ export default function Register({ onNavigate }) {
             {step === 'password' && (
               <>
                 <input type="hidden" name="email" value={email} autoComplete="username" />
-                <div className="text-center p-4 bg-slate-500/5 rounded-2xl border border-slate-500/10 mb-4">
-                  <p className="text-xs text-slate-500 dark:text-slate-400">Email Address Verified</p>
-                  <p className="font-semibold text-slate-800 dark:text-slate-200 mt-1">{email}</p>
-                </div>
-
                 <div className="space-y-1">
                   <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
-                    Password
+                    New Password
                   </label>
                   <div className="relative">
                     <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-500 dark:text-slate-400 pointer-events-none">
@@ -332,6 +321,27 @@ export default function Register({ onNavigate }) {
                   </div>
                 </div>
 
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
+                    Confirm New Password
+                  </label>
+                  <div className="relative">
+                    <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-500 dark:text-slate-400 pointer-events-none">
+                      <Lock className="w-5 h-5" />
+                    </span>
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      name="confirm-password"
+                      autoComplete="new-password"
+                      placeholder="••••••••"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      className="glass-input w-full pl-11"
+                      required
+                    />
+                  </div>
+                </div>
+
                 <button
                   type="submit"
                   disabled={loading}
@@ -340,23 +350,13 @@ export default function Register({ onNavigate }) {
                   {loading ? (
                     <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
                   ) : (
-                    <span>Complete Account Registration</span>
+                    <span>Update Password</span>
                   )}
                 </button>
               </>
             )}
           </form>
         )}
-
-        <div className="mt-8 text-center text-sm text-slate-500 dark:text-slate-400">
-          Already have an account?{' '}
-          <button
-            onClick={() => onNavigate('login')}
-            className="text-cyan-500 dark:text-cyan-400 hover:text-cyan-600 dark:hover:text-cyan-300 font-semibold underline underline-offset-4 hover:underline transition-colors"
-          >
-            Log in instead
-          </button>
-        </div>
       </div>
     </div>
   );

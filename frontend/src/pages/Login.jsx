@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Eye, EyeOff, Lock, Mail, Sparkles } from 'lucide-react';
+import { Eye, EyeOff, Lock, Mail, Sparkles, ArrowLeft } from 'lucide-react';
 
 export default function Login({ onNavigate }) {
-  const { login } = useAuth();
+  const { login, user } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -20,10 +20,10 @@ export default function Login({ onNavigate }) {
     setLoading(true);
     try {
       await login(email, password);
-      onNavigate('dashboard');
+      // Force page reload/navigation to trigger browser credentials manager saving popup
+      window.location.href = '/';
     } catch (err) {
       setErrorMsg(err.message || 'Login failed. Please verify credentials.');
-    } finally {
       setLoading(false);
     }
   };
@@ -35,7 +35,17 @@ export default function Login({ onNavigate }) {
       <div className="absolute bottom-1/4 right-1/4 w-72 h-72 bg-cyan-500/10 rounded-full blur-3xl -z-10 pointer-events-none"></div>
 
       <div className="glass-panel w-full max-w-md p-8 rounded-3xl ai-glow-ring relative">
-        <div className="flex flex-col items-center mb-8">
+        {user && (
+          <button
+            onClick={() => onNavigate('dashboard')}
+            className="absolute top-6 left-6 text-slate-400 hover:text-slate-200 flex items-center space-x-1 text-xs font-semibold transition-colors"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" />
+            <span>Cancel & Back</span>
+          </button>
+        )}
+
+        <div className={`flex flex-col items-center mb-8 ${user ? 'mt-4' : ''}`}>
           <div className="w-14 h-14 bg-gradient-to-tr from-purple-500 to-cyan-500 rounded-2xl flex items-center justify-center shadow-lg shadow-cyan-500/15 mb-4">
             <Sparkles className="w-7 h-7 text-white animate-pulse" />
           </div>
@@ -64,6 +74,8 @@ export default function Login({ onNavigate }) {
               </span>
               <input
                 type="email"
+                name="email"
+                autoComplete="username"
                 placeholder="you@example.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -83,6 +95,8 @@ export default function Login({ onNavigate }) {
               </span>
               <input
                 type={showPassword ? 'text' : 'password'}
+                name="password"
+                autoComplete="current-password"
                 placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -95,6 +109,15 @@ export default function Login({ onNavigate }) {
                 className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-200 transition-colors"
               >
                 {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+              </button>
+            </div>
+            <div className="text-right">
+              <button
+                type="button"
+                onClick={() => onNavigate('forgot-password')}
+                className="text-xs text-cyan-500 hover:text-cyan-400 font-semibold underline underline-offset-4 hover:underline transition-colors mt-1"
+              >
+                Forgot Password?
               </button>
             </div>
           </div>

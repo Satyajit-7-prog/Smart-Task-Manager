@@ -5,25 +5,34 @@ import Dashboard from './pages/Dashboard';
 import Analytics from './pages/Analytics';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import ForgotPassword from './pages/ForgotPassword';
 import { Brain } from 'lucide-react';
+import ToastContainer from './components/ToastContainer';
 
 function AppContent() {
   const { user, loading } = useAuth();
   const [currentPage, setCurrentPage] = useState('login');
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [initialCheckDone, setInitialCheckDone] = useState(false);
 
   // Handle routing / authentication transitions automatically
   useEffect(() => {
     if (!loading) {
       if (user) {
-        setCurrentPage('app');
+        if (!initialCheckDone) {
+          setCurrentPage('app');
+          setInitialCheckDone(true);
+        } else if (currentPage !== 'login' && currentPage !== 'register' && currentPage !== 'forgot-password') {
+          setCurrentPage('app');
+        }
       } else {
+        setInitialCheckDone(true);
         if (currentPage === 'app') {
           setCurrentPage('login');
         }
       }
     }
-  }, [user, loading]);
+  }, [user, loading, currentPage, initialCheckDone]);
 
   if (loading) {
     return (
@@ -34,7 +43,7 @@ function AppContent() {
           <Brain className="w-6 h-6 text-white animate-spin" />
         </div>
         <p className="text-slate-500 dark:text-slate-400 font-bold text-sm tracking-wider animate-pulse uppercase">
-          Synthesizing AI Environment
+          Loading...
         </p>
       </div>
     );
@@ -42,11 +51,30 @@ function AppContent() {
 
   // Handle Unauthenticated Routes
   if (currentPage === 'login') {
-    return <Login onNavigate={setCurrentPage} />;
+    return (
+      <>
+        <Login onNavigate={setCurrentPage} />
+        <ToastContainer />
+      </>
+    );
   }
 
   if (currentPage === 'register') {
-    return <Register onNavigate={setCurrentPage} />;
+    return (
+      <>
+        <Register onNavigate={setCurrentPage} />
+        <ToastContainer />
+      </>
+    );
+  }
+
+  if (currentPage === 'forgot-password') {
+    return (
+      <>
+        <ForgotPassword onNavigate={setCurrentPage} />
+        <ToastContainer />
+      </>
+    );
   }
 
   // Handle Authenticated App
@@ -62,6 +90,7 @@ function AppContent() {
       ) : (
         <Analytics />
       )}
+      <ToastContainer />
     </div>
   );
 }

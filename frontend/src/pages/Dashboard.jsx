@@ -3,6 +3,8 @@ import { api } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
 import TaskCard from '../components/TaskCard';
 import TaskModal from '../components/TaskModal';
+import { useNotifications } from '../context/NotificationContext';
+import NotificationBell from '../components/NotificationBell';
 import { 
   Sparkles, Plus, Search, Filter, RefreshCw, CheckCircle2, 
   Hourglass, AlertTriangle, Lightbulb 
@@ -10,6 +12,7 @@ import {
 
 export default function Dashboard() {
   const { user } = useAuth();
+  const { notify, checkTaskDeadlines, syncAlertedList } = useNotifications();
   
   // Tasks state
   const [tasks, setTasks] = useState([]);
@@ -37,6 +40,14 @@ export default function Dashboard() {
   useEffect(() => {
     fetchData();
   }, [statusFilter, priorityFilter, categoryFilter]);
+
+  // Check deadlines and reschedules whenever tasks change
+  useEffect(() => {
+    if (tasks && tasks.length > 0) {
+      checkTaskDeadlines(tasks);
+      syncAlertedList(tasks);
+    }
+  }, [tasks, checkTaskDeadlines, syncAlertedList]);
 
   const fetchData = async () => {
     try {
@@ -80,6 +91,13 @@ export default function Dashboard() {
       // Update list locally
       setTasks(prev => prev.map(t => t.id === task.id ? updatedTask : t));
       
+      // Trigger notification
+      if (updatedStatus === 'Completed') {
+        notify('Task Completed 🎉', `Successfully completed task "${task.title}"!`, 'success');
+      } else {
+        notify('Task Restored 🔄', `Task "${task.title}" is back to pending.`, 'info');
+      }
+      
       // Fetch fresh analytics
       const analyticsData = await api.get('/analytics/');
       setAnalyticsSummary(analyticsData);
@@ -95,10 +113,12 @@ export default function Dashboard() {
         // Update task
         const updated = await api.put(`/tasks/${selectedTask.id}`, taskData);
         setTasks(prev => prev.map(t => t.id === selectedTask.id ? updated : t));
+        notify('Task Updated 📝', `Successfully updated "${updated.title}"`, 'success');
       } else {
         // Create task
         const created = await api.post('/tasks/', taskData);
         setTasks(prev => [created, ...prev]);
+        notify('Task Created ➕', `Successfully created "${created.title}"`, 'success');
       }
       setIsModalOpen(false);
       setSelectedTask(null);
@@ -115,9 +135,14 @@ export default function Dashboard() {
   const handleDeleteTask = async (taskId) => {
     if (!window.confirm('Are you sure you want to delete this task?')) return;
     try {
+      const deletedTask = tasks.find(t => t.id === taskId);
+      const title = deletedTask ? deletedTask.title : '';
+      
       await api.delete(`/tasks/${taskId}`);
       setTasks(prev => prev.filter(t => t.id !== taskId));
       
+      notify('Task Deleted 🗑️', `"${title}" has been deleted.`, 'warning');
+
       // Fetch fresh analytics
       const analyticsData = await api.get('/analytics/');
       setAnalyticsSummary(analyticsData);
@@ -139,6 +164,8 @@ export default function Dashboard() {
       setTasks(prev => [createdTask, ...prev]);
       setNlpInput('');
       
+      notify('AI Task Added 🧠', `Successfully added task: "${createdTask.title}"`, 'success');
+
       // Render clean parsing feedback
       setNlpFeedback({
         success: true,
@@ -183,6 +210,7 @@ export default function Dashboard() {
         </div>
 
         <div className="flex items-center space-x-3">
+          <NotificationBell />
           <button
             onClick={handleRefresh}
             className={`p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-900/40 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-slate-900/80 transition-all ${

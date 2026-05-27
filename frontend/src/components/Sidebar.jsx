@@ -1,11 +1,12 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
-import { LayoutGrid, BarChart2, LogOut, Sun, Moon, Sparkles } from 'lucide-react';
+import { LayoutGrid, BarChart2, LogOut, Sun, Moon, Sparkles, ChevronDown, ChevronUp, Check, UserPlus } from 'lucide-react';
 
 export default function Sidebar({ activeTab, onTabChange, onNavigate }) {
-  const { user, logout } = useAuth();
+  const { user, accounts, switchAccount, logoutAccount, logout } = useAuth();
   const { isDark, toggleTheme } = useTheme();
+  const [showAccountSwitcher, setShowAccountSwitcher] = useState(false);
 
   const handleLogout = () => {
     logout();
@@ -77,30 +78,97 @@ export default function Sidebar({ activeTab, onTabChange, onNavigate }) {
           )}
         </button>
 
-        {/* User Block */}
+        {/* User Block & Switcher */}
         {user && (
-          <div className="flex items-center justify-between p-2.5 rounded-2xl bg-slate-200/80 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800/50">
-            <div className="flex items-center space-x-2.5 min-w-0">
-              <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-cyan-400 to-purple-500 flex items-center justify-center text-white font-bold text-sm shadow-md">
-                {(user.full_name || user.email).charAt(0).toUpperCase()}
+          <div className="space-y-2">
+            {showAccountSwitcher && (
+              <div className="space-y-2 p-2 rounded-2xl bg-slate-100/50 dark:bg-slate-900/40 border border-slate-200/60 dark:border-slate-800/40 animate-in fade-in slide-in-from-bottom-2 duration-200">
+                <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 px-2.5 uppercase tracking-wider">
+                  Accounts
+                </p>
+                
+                {/* Account List */}
+                <div className="max-h-40 overflow-y-auto space-y-1 pr-1 custom-scrollbar">
+                  {accounts.map((acc) => {
+                    const isActive = acc.email === user.email;
+                    return (
+                      <div 
+                        key={acc.email} 
+                        className={`flex items-center justify-between p-1.5 rounded-xl transition-all ${
+                          isActive 
+                            ? 'bg-slate-200/70 dark:bg-white/5 border border-slate-300/40 dark:border-white/5' 
+                            : 'hover:bg-slate-200/40 dark:hover:bg-white/5 border border-transparent'
+                        }`}
+                      >
+                        <button
+                          onClick={() => !isActive && switchAccount(acc.email)}
+                          disabled={isActive}
+                          className={`flex items-center space-x-2 min-w-0 text-left flex-1 ${!isActive ? 'cursor-pointer' : ''}`}
+                        >
+                          <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-cyan-400 to-purple-500 flex items-center justify-center text-white font-bold text-xs shadow-sm flex-shrink-0">
+                            {(acc.full_name || acc.email).charAt(0).toUpperCase()}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-[11px] font-bold text-slate-700 dark:text-slate-200 truncate">
+                              {acc.full_name || 'Premium User'}
+                            </p>
+                            <p className="text-[9px] text-slate-500 dark:text-slate-400 truncate">
+                              {acc.email}
+                            </p>
+                          </div>
+                        </button>
+                        
+                        <div className="flex items-center space-x-1 flex-shrink-0 ml-1">
+                          {isActive && <Check className="w-3.5 h-3.5 text-cyan-400 mr-1" />}
+                          <button
+                            onClick={() => logoutAccount(acc.email)}
+                            className="p-1 text-slate-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-500/10 rounded-md transition-all"
+                            title="Sign Out Account"
+                          >
+                            <LogOut className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Add Another Account Button */}
+                <button
+                  onClick={() => {
+                    setShowAccountSwitcher(false);
+                    onNavigate('login');
+                  }}
+                  className="w-full flex items-center justify-center space-x-2 px-3 py-2 rounded-xl text-left text-xs font-semibold text-cyan-500 dark:text-cyan-400 hover:bg-cyan-500/10 hover:text-cyan-400 transition-all border border-dashed border-cyan-500/30"
+                >
+                  <UserPlus className="w-4 h-4" />
+                  <span>Add another account</span>
+                </button>
               </div>
-              <div className="min-w-0">
-                <p className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate">
-                  {user.full_name || 'Premium User'}
-                </p>
-                <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate">
-                  {user.email}
-                </p>
+            )}
+
+            {/* Current User Toggle Block */}
+            <div 
+              onClick={() => setShowAccountSwitcher(!showAccountSwitcher)}
+              className="flex items-center justify-between p-2.5 rounded-2xl bg-slate-200/80 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800/50 cursor-pointer hover:bg-slate-300/40 dark:hover:bg-slate-800/50 transition-all select-none"
+            >
+              <div className="flex items-center space-x-2.5 min-w-0">
+                <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-cyan-400 to-purple-500 flex items-center justify-center text-white font-bold text-sm shadow-md">
+                  {(user.full_name || user.email).charAt(0).toUpperCase()}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate">
+                    {user.full_name || 'Premium User'}
+                  </p>
+                  <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate">
+                    {user.email}
+                  </p>
+                </div>
+              </div>
+              <div className="text-slate-450 hover:text-slate-250 p-1 flex-shrink-0">
+                {showAccountSwitcher ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
               </div>
             </div>
-            
-            <button
-              onClick={handleLogout}
-              className="p-1.5 text-slate-500 dark:text-slate-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all"
-              title="Sign Out"
-            >
-              <LogOut className="w-4.5 h-4.5" />
-            </button>
           </div>
         )}
       </div>

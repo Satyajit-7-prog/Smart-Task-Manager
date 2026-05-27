@@ -10,12 +10,20 @@ class UserBase(BaseModel):
 class UserCreate(UserBase):
     password: str = Field(..., min_length=6)
 
+class OTPVerifyRequest(BaseModel):
+    email: EmailStr
+    otp: str
+
+class OTPRequest(BaseModel):
+    email: EmailStr
+
 class UserResponse(UserBase):
     id: int
     created_at: datetime
 
     class Config:
         from_attributes = True
+
 
 # --- Token Schemas ---
 class Token(BaseModel):
@@ -95,3 +103,9 @@ class NLPParseResponse(BaseModel):
     category_name: Optional[str] = None
     confidence: float
     explanation: str
+
+
+class PasswordResetConfirm(BaseModel):
+    email: EmailStr
+    new_password: str = Field(..., min_length=6)
+

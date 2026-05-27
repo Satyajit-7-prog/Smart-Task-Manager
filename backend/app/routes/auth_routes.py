@@ -1,16 +1,138 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
-from datetime import timedelta
+from datetime import datetime, timedelta
+import secrets
 
 from app import models, schemas, auth
 from app.database import get_db
+from app.email_utils import send_otp_email, send_password_reset_email
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
+@router.post("/register/send-otp")
+def send_otp(request: schemas.OTPRequest, db: Session = Depends(get_db)):
+    # Check if user already exists
+    existing_user = db.query(models.User).filter(models.User.email == request.email).first()
+    if existing_user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="A user with this email is already registered."
+        )
+    
+    # Generate 6-digit OTP
+    otp = "".join(secrets.choice("0123456789") for _ in range(6))
+    expires_at = datetime.utcnow() + timedelta(minutes=5)
+    
+    # Save or update in database
+    db_otp = db.query(models.OTPVerification).filter(models.OTPVerification.email == request.email).first()
+    if db_otp:
+        db_otp.otp = otp
+        db_otp.expires_at = expires_at
+        db_otp.attempts = 0
+        db_otp.verified = False
+        db_otp.created_at = datetime.utcnow()
+    else:
+        db_otp = models.OTPVerification(
+            email=request.email,
+            otp=otp,
+            expires_at=expires_at,
+            attempts=0,
+            verified=False
+        )
+        db.add(db_otp)
+    
+    db.commit()
+    
+    # Send email
+    try:
+        send_otp_email(request.email, otp)
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to send verification email. Please try again later."
+        )
+        
+    return {"message": "OTP verification code sent successfully."}
+
+@router.post("/register/verify-otp")
+def verify_otp(request: schemas.OTPVerifyRequest, db: Session = Depends(get_db)):
+    db_otp = db.query(models.OTPVerification).filter(models.OTPVerification.email == request.email).first()
+    if not db_otp:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No OTP request found for this email. Please request an OTP first."
+        )
+    
+    # Check if expired
+    if db_otp.expires_at < datetime.utcnow():
+        db.delete(db_otp)
+        db.commit()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="OTP has expired. Please request a new one."
+        )
+        
+    # Check attempts
+    if db_otp.attempts >= 5:
+        db.delete(db_otp)
+        db.commit()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Too many invalid OTP verification attempts. Please request a new OTP."
+        )
+        
+    # Verify code
+    if db_otp.otp != request.otp:
+        db_otp.attempts += 1
+        db.commit()
+        attempts_left = 5 - db_otp.attempts
+        if attempts_left <= 0:
+            db.delete(db_otp)
+            db.commit()
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Too many invalid OTP verification attempts. Please request a new OTP."
+            )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid OTP code. {attempts_left} attempts remaining."
+        )
+        
+    # OTP is correct! Mark as verified and extend expiration
+    db_otp.verified = True
+    db_otp.expires_at = datetime.utcnow() + timedelta(minutes=10)
+    db.commit()
+    
+    return {"message": "Email verified successfully."}
+
 @router.post("/register", response_model=schemas.UserResponse)
 def register(user_in: schemas.UserCreate, db: Session = Depends(get_db)):
-    # Check if user already exists
+    # Check if email is verified
+    db_otp = db.query(models.OTPVerification).filter(
+        models.OTPVerification.email == user_in.email,
+        models.OTPVerification.verified == True
+    ).first()
+    if not db_otp:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email verification is required. Please verify your email first."
+        )
+    
+    # Check if verification expired
+    if db_otp.expires_at < datetime.utcnow():
+        db.delete(db_otp)
+        db.commit()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email verification session has expired. Please verify again."
+        )
+        
+    # OTP is verified! Delete it from DB
+    db.delete(db_otp)
+    db.commit()
+
+    # Check if user already exists (extra safety check)
     existing_user = db.query(models.User).filter(models.User.email == user_in.email).first()
     if existing_user:
         raise HTTPException(
@@ -54,6 +176,7 @@ def register(user_in: schemas.UserCreate, db: Session = Depends(get_db)):
 
     return user
 
+
 @router.post("/login", response_model=schemas.Token)
 def login(login_data: schemas.UserCreate, db: Session = Depends(get_db)):
     """Standard JSON API Login"""
@@ -95,3 +218,145 @@ def login_swagger(form_data: OAuth2PasswordRequestForm = Depends(), db: Session 
 @router.get("/me", response_model=schemas.UserResponse)
 def get_me(current_user: models.User = Depends(auth.get_current_user)):
     return current_user
+
+
+@router.post("/password-reset/send-otp")
+def password_reset_send_otp(request: schemas.OTPRequest, db: Session = Depends(get_db)):
+    # Check if user exists
+    user = db.query(models.User).filter(models.User.email == request.email).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No account associated with this email address."
+        )
+    
+    # Generate 6-digit OTP
+    otp = "".join(secrets.choice("0123456789") for _ in range(6))
+    expires_at = datetime.utcnow() + timedelta(minutes=5)
+    
+    # Save or update in database
+    db_otp = db.query(models.OTPVerification).filter(models.OTPVerification.email == request.email).first()
+    if db_otp:
+        db_otp.otp = otp
+        db_otp.expires_at = expires_at
+        db_otp.attempts = 0
+        db_otp.verified = False
+        db_otp.created_at = datetime.utcnow()
+    else:
+        db_otp = models.OTPVerification(
+            email=request.email,
+            otp=otp,
+            expires_at=expires_at,
+            attempts=0,
+            verified=False
+        )
+        db.add(db_otp)
+    
+    db.commit()
+    
+    # Send reset email
+    try:
+        send_password_reset_email(request.email, otp)
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to send password reset email. Please try again later."
+        )
+        
+    return {"message": "Verification code sent to your email."}
+
+@router.post("/password-reset/verify-otp")
+def password_reset_verify_otp(request: schemas.OTPVerifyRequest, db: Session = Depends(get_db)):
+    db_otp = db.query(models.OTPVerification).filter(models.OTPVerification.email == request.email).first()
+    if not db_otp:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No OTP request found for this email. Please request a code first."
+        )
+    
+    # Check if expired
+    if db_otp.expires_at < datetime.utcnow():
+        db.delete(db_otp)
+        db.commit()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Verification code has expired. Please request a new one."
+        )
+        
+    # Check attempts
+    if db_otp.attempts >= 5:
+        db.delete(db_otp)
+        db.commit()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Too many invalid OTP verification attempts. Please request a new code."
+        )
+        
+    # Verify code
+    if db_otp.otp != request.otp:
+        db_otp.attempts += 1
+        db.commit()
+        attempts_left = 5 - db_otp.attempts
+        if attempts_left <= 0:
+            db.delete(db_otp)
+            db.commit()
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Too many invalid OTP verification attempts. Please request a new code."
+            )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid verification code. {attempts_left} attempts remaining."
+        )
+        
+    # OTP is correct! Mark as verified and extend expiration
+    db_otp.verified = True
+    db_otp.expires_at = datetime.utcnow() + timedelta(minutes=10)
+    db.commit()
+    
+    return {"message": "Verification successful. You can now reset your password."}
+
+@router.post("/password-reset/confirm")
+def password_reset_confirm(request: schemas.PasswordResetConfirm, db: Session = Depends(get_db)):
+    # Check if email is verified
+    db_otp = db.query(models.OTPVerification).filter(
+        models.OTPVerification.email == request.email,
+        models.OTPVerification.verified == True
+    ).first()
+    if not db_otp:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Verification is required. Please verify your email first."
+        )
+    
+    # Check if verification expired
+    if db_otp.expires_at < datetime.utcnow():
+        db.delete(db_otp)
+        db.commit()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Verification session has expired. Please verify again."
+        )
+    
+    # Check if user exists
+    user = db.query(models.User).filter(models.User.email == request.email).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User account not found."
+        )
+        
+    # Validated! Hash the new password and update
+    user.hashed_password = auth.get_password_hash(request.new_password)
+    
+    # Delete the verification record
+    db.delete(db_otp)
+    db.commit()
+    
+    # Create activity log
+    log = models.ActivityLog(user_id=user.id, action="reset_password")
+    db.add(log)
+    db.commit()
+
+    return {"message": "Password reset completed successfully. Please log in with your new password."}
+

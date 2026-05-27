@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../utils/api';
+import NotificationBell from '../components/NotificationBell';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   BarChart, Bar, Cell, AreaChart, Area
@@ -52,7 +53,7 @@ export default function Analytics() {
   return (
     <div className="pl-64 min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 pb-12 transition-colors duration-200">
       {/* Header */}
-      <header className="p-8 border-b border-slate-200 dark:border-slate-900">
+      <header className="p-8 border-b border-slate-200 dark:border-slate-900 flex items-center justify-between">
         <div className="flex items-center space-x-3">
           <div className="w-10 h-10 bg-cyan-500/10 rounded-xl flex items-center justify-center text-cyan-600 dark:text-cyan-400 border border-cyan-500/25">
             <Brain className="w-5 h-5 animate-pulse" />
@@ -63,6 +64,9 @@ export default function Analytics() {
               Deep behavior analytics and historical performance charts computed by the AI Engine.
             </p>
           </div>
+        </div>
+        <div className="flex items-center">
+          <NotificationBell />
         </div>
       </header>
 
