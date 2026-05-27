@@ -81,7 +81,6 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (email, password) => {
     setError(null);
-    setLoading(true);
     try {
       const data = await api.post('/auth/login', { email, password });
       sessionStorage.setItem('token', data.access_token);
@@ -107,14 +106,11 @@ export const AuthProvider = ({ children }) => {
     } catch (err) {
       setError(err.message);
       throw err;
-    } finally {
-      setLoading(false);
     }
   };
 
   const register = async (email, password, fullName) => {
     setError(null);
-    setLoading(true);
     try {
       const newUser = await api.post('/auth/register', { 
         email, 
@@ -125,8 +121,6 @@ export const AuthProvider = ({ children }) => {
     } catch (err) {
       setError(err.message);
       throw err;
-    } finally {
-      setLoading(false);
     }
   };
 

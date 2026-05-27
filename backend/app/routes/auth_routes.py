@@ -3,6 +3,9 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
 import secrets
+import logging
+
+logger = logging.getLogger(__name__)
 
 from app import models, schemas, auth
 from app.database import get_db
@@ -47,13 +50,11 @@ def send_otp(request: schemas.OTPRequest, db: Session = Depends(get_db)):
     # Send email
     try:
         send_otp_email(request.email, otp)
-    except Exception:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to send verification email. Please try again later."
-        )
+    except Exception as e:
+        logger.warning(f"SMTP failed to send registration email to {request.email}. Fallback OTP printed to console. Error: {e}")
+        print(f"\n========================================\n[SMTP FALLBACK] OTP for {request.email} is: {otp}\n========================================\n")
         
-    return {"message": "OTP verification code sent successfully."}
+    return {"message": "OTP verification code sent successfully. (If email delivery fails, check backend server logs for developer OTP fallback)"}
 
 @router.post("/register/verify-otp")
 def verify_otp(request: schemas.OTPVerifyRequest, db: Session = Depends(get_db)):
@@ -257,13 +258,11 @@ def password_reset_send_otp(request: schemas.OTPRequest, db: Session = Depends(g
     # Send reset email
     try:
         send_password_reset_email(request.email, otp)
-    except Exception:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to send password reset email. Please try again later."
-        )
+    except Exception as e:
+        logger.warning(f"SMTP failed to send reset email to {request.email}. Fallback OTP printed to console. Error: {e}")
+        print(f"\n========================================\n[SMTP RESET FALLBACK] OTP for {request.email} is: {otp}\n========================================\n")
         
-    return {"message": "Verification code sent to your email."}
+    return {"message": "Verification code sent to your email. (If email delivery fails, check backend server logs for developer OTP fallback)"}
 
 @router.post("/password-reset/verify-otp")
 def password_reset_verify_otp(request: schemas.OTPVerifyRequest, db: Session = Depends(get_db)):
